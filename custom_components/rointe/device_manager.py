@@ -120,13 +120,6 @@ class RointeDeviceManager:
             _LOGGER.error("Device ID %s has no valid data. Ignoring", device_id)
             return
 
-        _LOGGER.info(
-            "Processing device %s [%s] - %s",
-            device_data_data.get("name", "N/A"),
-            device_data_data.get("type", "N/A"),
-            device_data_data.get("product_version", "N/A"),
-        )
-
         if device_id in self.rointe_devices:
             # Existing device, update it.
             self.rointe_devices[device_id].update_data(device_data, energy_stats)
@@ -135,8 +128,7 @@ class RointeDeviceManager:
             tmp_device = self.rointe_devices[device_id]
 
             _LOGGER.info(
-                "Updating [%s] - %s => Power: %s, Status: %s, Mode: %s, Temp: %s",
-                device_id,
+                "Updating [%s] => Power: %s, Status: %s, Mode: %s, Temp: %s",
                 device_data_data.get("name", "N/A"),
                 tmp_device.power,
                 tmp_device.preset,
@@ -152,23 +144,21 @@ class RointeDeviceManager:
                     _LOGGER.warning("Ignoring Rointe device type %s", device_type)
                     return
 
+                _LOGGER.info(
+                    "Adding device %s [%s] - %s",
+                    device_data_data.get("name", "N/A"),
+                    device_data_data.get("type", "N/A"),
+                    device_data_data.get("product_version", "N/A"),
+                )
+
                 self.rointe_devices[device_id] = RointeDevice(
                     device_info=device_data,
                     device_id=device_id,
                     energy_data=energy_stats,
                 )
 
-                # debug
-                _LOGGER.info(
-                    "Creating new device [%s] - %s",
-                    device_id,
-                    device_data_data.get("name", "N/A"),
-                )
-
             except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.error("Unable to process device %s. Error: %s", device_id, ex)
-
-            _LOGGER.info("Detected new device %s", device_data["data"]["name"])
 
     async def send_command(self, device: RointeDevice, command: str, arg) -> bool:
         """Send command to the device."""
@@ -241,7 +231,7 @@ class RointeDeviceManager:
             device.preset = "off"
 
         elif hvac_mode == "heat":
-            device.temp = RADIATOR_DEFAULT_TEMPERATURE
+            device.temp = device.comfort_temp
             device.power = True
             device.mode = "manual"
             device.preset = "none"

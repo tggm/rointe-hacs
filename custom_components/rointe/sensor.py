@@ -139,7 +139,6 @@ class RointeEnergySensor(RointeRadiatorEntity, SensorEntity):
     def last_reset(self) -> datetime | None:
         """Return the last time the sensor was initialized."""
         if self._radiator.energy_data:
-            print("Last reset is: >>> " + str(self._radiator.energy_data.start))
             return self._radiator.energy_data.start
         else:
             return None
