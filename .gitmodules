@@ -1,4 +1,0 @@
-[submodule "homeassistant/components/rointe"]
-	path = homeassistant/components/rointe
-	url = https://github.com/tggm/core
-	branch = rointe-integration

@@ -6,6 +6,7 @@
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
+            "response_invalid": "Unexpected error",
             "unknown": "Unexpected error"
         },
         "step": {

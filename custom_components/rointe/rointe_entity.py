@@ -8,9 +8,9 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api.device_manager import RointeDevice, RointeDeviceManager
 from .const import ATTRIBUTION, DOMAIN, ROINTE_HA_SIGNAL_UPDATE_ENTITY
 from .coordinator import RointeDataUpdateCoordinator
+from .device_manager import RointeDevice, RointeDeviceManager
 
 _LOGGER = logging.getLogger(__name__)
 

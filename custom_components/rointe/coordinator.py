@@ -7,8 +7,8 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .api.device_manager import RointeDeviceManager
 from .const import DOMAIN, ROINTE_API_REFRESH_SECONDS
+from .device_manager import RointeDeviceManager
 
 _LOGGER = logging.getLogger(__name__)
 

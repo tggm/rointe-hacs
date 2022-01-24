@@ -4,13 +4,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from rointesdk.rointe_api import RointeAPI
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
-from .api.api_wrapper import get_installations, get_local_id, login_user
-from .api.exceptions import APIError, CannotConnect, InvalidAuth
 from .const import (
     CONF_INSTALLATION,
     CONF_LOCAL_ID,
@@ -52,34 +51,48 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Step: User credentials validation."""
 
         errors = {}
+        rointe_api: RointeAPI
 
         if user_input is not None:
             try:
-                login_data = await self.hass.async_add_executor_job(
-                    login_user, user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
+                rointe_api = RointeAPI(
+                    user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
                 )
 
-                local_id = await self.hass.async_add_executor_job(
-                    get_local_id, login_data["auth_token"]
+                login_error_code = await self.hass.async_add_executor_job(
+                    rointe_api.initialize_authentication
                 )
 
-                installations = await self.hass.async_add_executor_job(
-                    get_installations, local_id, login_data["auth_token"]
+                if not rointe_api.is_logged_in():
+                    raise Exception(login_error_code)
+
+                local_id_response = await self.hass.async_add_executor_job(
+                    rointe_api.get_local_id
                 )
+
+                if not local_id_response.success:
+                    raise Exception(local_id_response.error_message)
+
+                local_id = local_id_response.data
+
+                installations_response = await self.hass.async_add_executor_job(
+                    rointe_api.get_installations, local_id
+                )
+
+                if not installations_response.success:
+                    raise Exception(installations_response.error_message)
+
+                installations = installations_response.data
 
                 # If we get this far then we have logged in and determined the local_id. Go the next step.
                 self.step_user_data = user_input
                 self.step_user_local_id = local_id
                 self.step_user_installations = installations
 
-                return await self.async_step_installation(login_data)
+                return await self.async_step_installation(None)
 
-            except CannotConnect:
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                errors["base"] = "invalid_auth"
-            except APIError:
-                errors["base"] = "unknown"
+            except Exception as ex:
+                errors["base"] = str(ex)
 
         # TODO -> ?
         if user_input is None:
