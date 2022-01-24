@@ -28,7 +28,7 @@ ROINTE_COORDINATOR = "rointe_coordinator"
 ROINTE_HA_ROINTE_MAP = "rointe_ha_rointe_map"
 ROINTE_HA_DEVICES = "rointe_ha_devices"
 ROINTE_HA_SIGNAL_UPDATE_ENTITY = "rointe_entry_update"
-ROINTE_API_REFRESH_SECONDS = 30
+ROINTE_API_REFRESH_SECONDS = 60
 ROINTE_SUPPORTED_DEVICES = ["radiator", "towel", "therm"]
 
 CMD_SET_TEMP = "cmd_set_temp"

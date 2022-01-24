@@ -57,7 +57,11 @@ class RointeDeviceManager:
         )
 
         if not installation_response.success:
-            _LOGGER.error("Installation %s not found", self.installation_id)
+            _LOGGER.error(
+                "Installation %s not found. Error: %s",
+                self.installation_id,
+                installation_response.error_message,
+            )
             return False
 
         installation = installation_response.data
@@ -184,12 +188,16 @@ class RointeDeviceManager:
     async def _set_device_temp(self, device: RointeDevice, new_temp: float) -> bool:
         """Set device temperature."""
 
-        result = await self.hass.async_add_executor_job(
+        result: ApiResponse = await self.hass.async_add_executor_job(
             self.rointe_api.set_device_temp, device, new_temp
         )
 
         if not result.success:
-            _LOGGER.error("Unable to set device temperature for %s", device.name)
+            _LOGGER.error(
+                "Unable to set device temperature for %s. Error:",
+                device.name,
+                result.error_message,
+            )
             return False
 
         # Update the device internal status
@@ -216,7 +224,11 @@ class RointeDeviceManager:
         )
 
         if not result.success:
-            _LOGGER.error("Unable to set device HVAC Mode for %s", device.name)
+            _LOGGER.error(
+                "Unable to set device HVAC Mode for %s. Error: %s",
+                device.name,
+                result.error_message,
+            )
             return False
 
         # Update the device's internal status
