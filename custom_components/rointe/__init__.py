@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from rointesdk.rointe_api import RointeAPI
+from rointesdk.rointe_api import ApiResponse, RointeAPI
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from .const import (
     CONF_INSTALLATION,
@@ -44,6 +45,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN)
 
+        raise ConfigEntryNotReady("Unable to connect to Rointe API.")
+
     return bool(success)
 
 
@@ -54,7 +57,16 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         RointeAPI, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
     )
 
-    await hass.async_add_executor_job(api.initialize_authentication)
+    # Login to the Rointe API.
+    login_result: ApiResponse = await hass.async_add_executor_job(
+        api.initialize_authentication
+    )
+
+    if not login_result.success:
+        _LOGGER.error(
+            f"Unable to authenticate to Rointe API: {login_result.error_message}"
+        )
+        return False
 
     device_manager = RointeDeviceManager(
         username=entry.data[CONF_USERNAME],

@@ -1,7 +1,7 @@
 """A sensor for the current Rointe radiator temperature."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 from rointesdk.device import RointeDevice
@@ -25,12 +25,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import DOMAIN, ROINTE_COORDINATOR, ROINTE_DEVICE_MANAGER
+from .const import (
+    DOMAIN,
+    ROINTE_COORDINATOR,
+    ROINTE_DEVICE_MANAGER,
+    SCAN_INTERVAL_SECONDS,
+)
 from .coordinator import RointeDataUpdateCoordinator
 from .device_manager import RointeDeviceManager
 from .rointe_entity import RointeRadiatorEntity
 
 LOGGER = logging.getLogger(__name__)
+
+SCAN_INTERVAL = timedelta(SCAN_INTERVAL_SECONDS)
 
 
 async def async_setup_entry(
@@ -92,6 +99,11 @@ class RointeHaSensor(RointeRadiatorEntity, SensorEntity):
     def native_value(self) -> StateType:
         """Return the current sensor value (Probe value)."""
         return self._radiator.temp_probe
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self._radiator and self._radiator.hass_available
 
 
 class RointeEnergySensor(RointeRadiatorEntity, SensorEntity):

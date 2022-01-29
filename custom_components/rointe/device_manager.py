@@ -49,6 +49,13 @@ class RointeDeviceManager:
         self.auth_token = None
         self.auth_token_expire_date: datetime | None = None
 
+    def _fail_all_devices(self):
+        """Set all devices as unavailable."""
+
+        if self.rointe_devices:
+            for device in self.rointe_devices.values():
+                device.hass_available = False
+
     async def update(self) -> bool:
         """Retrieve the devices from the users installation."""
 
@@ -58,10 +65,10 @@ class RointeDeviceManager:
 
         if not installation_response.success:
             _LOGGER.error(
-                "Installation %s not found. Error: %s",
-                self.installation_id,
+                "Unable to get Rointe Installations. Error: %s",
                 installation_response.error_message,
             )
+            self._fail_all_devices()
             return False
 
         installation = installation_response.data
@@ -122,18 +129,20 @@ class RointeDeviceManager:
 
         if device_id in self.rointe_devices:
             # Existing device, update it.
-            self.rointe_devices[device_id].update_data(device_data, energy_stats)
+            target_device = self.rointe_devices[device_id]
 
-            # Debug
-            tmp_device = self.rointe_devices[device_id]
+            if not target_device.hass_available:
+                _LOGGER.info("Restoring device %s", target_device.name)
 
-            _LOGGER.info(
+            target_device.update_data(device_data, energy_stats)
+
+            _LOGGER.debug(
                 "Updating [%s] => Power: %s, Status: %s, Mode: %s, Temp: %s",
                 device_data_data.get("name", "N/A"),
-                tmp_device.power,
-                tmp_device.preset,
-                tmp_device.mode,
-                tmp_device.temp,
+                target_device.power,
+                target_device.preset,
+                target_device.mode,
+                target_device.temp,
             )
         else:
             # New device.
@@ -183,11 +192,9 @@ class RointeDeviceManager:
         )
 
         if not result.success:
-            _LOGGER.error(
-                "Unable to set device temperature for %s. Error:",
-                device.name,
-                result.error_message,
-            )
+            # Set the device as unavailable.
+            device.hass_available = False
+
             return False
 
         # Update the device internal status
@@ -214,11 +221,9 @@ class RointeDeviceManager:
         )
 
         if not result.success:
-            _LOGGER.error(
-                "Unable to set device HVAC Mode for %s. Error: %s",
-                device.name,
-                result.error_message,
-            )
+            # Set the device as unavailable.
+            device.hass_available = False
+
             return False
 
         # Update the device's internal status
@@ -265,11 +270,9 @@ class RointeDeviceManager:
         )
 
         if not result.success:
-            _LOGGER.error(
-                "Unable to set device preset for %s. Error: %s",
-                device.name,
-                result.error_message,
-            )
+            # Set the device as unavailable.
+            device.hass_available = False
+
             return False
 
         # Update the device internal status

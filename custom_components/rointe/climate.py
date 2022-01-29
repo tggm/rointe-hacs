@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import ClimateEntity
@@ -20,6 +21,7 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -30,12 +32,15 @@ from .const import (
     PRESET_ROINTE_ICE,
     ROINTE_COORDINATOR,
     ROINTE_DEVICE_MANAGER,
+    SCAN_INTERVAL_SECONDS,
 )
 from .coordinator import RointeDataUpdateCoordinator
 from .device_manager import RointeDevice, RointeDeviceManager
 from .rointe_entity import RointeRadiatorEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+SCAN_INTERVAL = timedelta(SCAN_INTERVAL_SECONDS)
 
 
 async def async_setup_entry(
@@ -53,6 +58,9 @@ async def async_setup_entry(
     entities = []
 
     await coordinator.async_config_entry_first_refresh()
+
+    if not device_manager or not device_manager.rointe_devices:
+        raise PlatformNotReady
 
     for device_id in device_manager.rointe_devices:
         device = device_manager.rointe_devices[device_id]
@@ -82,6 +90,11 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
         )
 
         self._device_manager = manager
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self._radiator and self._radiator.hass_available
 
     @property
     def temperature_unit(self) -> str:
@@ -210,8 +223,8 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
                 target_temperature,
                 self._radiator.name,
             )
-        else:
-            await self._signal_thermostat_update()
+
+        await self._signal_thermostat_update()
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
@@ -224,8 +237,8 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
             _LOGGER.error(
                 "Failed to set HVAC mode [%s] for [%s]", hvac_mode, self._radiator.name
             )
-        else:
-            await self._signal_thermostat_update()
+
+        await self._signal_thermostat_update()
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new target preset mode."""
@@ -239,8 +252,8 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
                 preset_mode,
                 self._radiator.name,
             )
-        else:
-            await self._signal_thermostat_update()
+
+        await self._signal_thermostat_update()
 
     async def _signal_thermostat_update(self):
         """Signal a radiator change."""
