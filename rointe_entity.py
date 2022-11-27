@@ -1,31 +1,34 @@
 """Rointe HA base entity."""
 from __future__ import annotations
 
-import logging
-
 from homeassistant.const import ATTR_ATTRIBUTION
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTRIBUTION, DOMAIN, ROINTE_HA_SIGNAL_UPDATE_ENTITY
+from .const import (
+    ATTRIBUTION,
+    DOMAIN,
+    ROINTE_HA_SIGNAL_UPDATE_ENTITY,
+    ROINTE_MANUFACTURER,
+)
 from .coordinator import RointeDataUpdateCoordinator
 from .device_manager import RointeDevice, RointeDeviceManager
 
-_LOGGER = logging.getLogger(__name__)
-
 
 class RointeHAEntity(CoordinatorEntity):
-    """Rointe base HA entity."""
+    """Rointe entity base class."""
 
-    rointe_device: RointeDevice
-    rointe_device_manager: RointeDeviceManager
-
-    def __init__(self, coordinator, name, unique_id):
+    def __init__(self, coordinator: RointeDataUpdateCoordinator, name, unique_id):
         """Initialize the entity."""
         super().__init__(coordinator)
         self._unique_id = f"rointe-{unique_id}"
         self._name = name
+
+    def get_device_manager(self) -> RointeDeviceManager:
+        """Get the device manager."""
+        return self.coordinator.device_manager
 
     @property
     def unique_id(self):
@@ -46,7 +49,7 @@ class RointeHAEntity(CoordinatorEntity):
 
 
 class RointeRadiatorEntity(RointeHAEntity):
-    """Base class for Rointe radiators."""
+    """Base class for Rointe entities (climate and sensors)."""
 
     def __init__(
         self,
@@ -59,19 +62,18 @@ class RointeRadiatorEntity(RointeHAEntity):
 
         super().__init__(coordinator, name, unique_id)
         self._radiator = radiator
-
         self._signal_update = None
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return a device description for device registry."""
-        return {
-            "identifiers": {(DOMAIN, f"{self._radiator.id}")},
-            "manufacturer": "Rointe",
-            "name": self._radiator.name,
-            "model": "Radiator",
-            "s/n": self._radiator.serialnumber,
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, f"{self._radiator.id}")},
+            manufacturer=ROINTE_MANUFACTURER,
+            name=self._radiator.name,
+            model=f"{self._radiator.type} {self._radiator.product_version}",
+            sw_version=self._radiator.firmware_version,
+        )
 
     async def async_added_to_hass(self):
         """Listen for signals for services."""
@@ -95,10 +97,3 @@ class RointeRadiatorEntity(RointeHAEntity):
     def on_remove_handler(self) -> None:
         """Handle entity removed."""
         self.async_write_ha_state()
-
-    @property
-    def available(self) -> bool:
-        """Return if the device is available."""
-        # Forced to True since we don't know if the
-        # device is powered.
-        return True

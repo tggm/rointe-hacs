@@ -7,32 +7,20 @@ import logging
 from rointesdk.device import RointeDevice
 
 from homeassistant.components.sensor import (
-    DEVICE_CLASS_TEMPERATURE,
-    STATE_CLASS_MEASUREMENT,
-    STATE_CLASS_TOTAL,
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    DEVICE_CLASS_ENERGY,
-    DEVICE_CLASS_POWER,
-    ENERGY_KILO_WATT_HOUR,
-    POWER_WATT,
-    TEMP_CELSIUS,
-)
+from homeassistant.const import ENERGY_KILO_WATT_HOUR, POWER_WATT, TEMP_CELSIUS
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import (
-    DOMAIN,
-    ROINTE_COORDINATOR,
-    ROINTE_DEVICE_MANAGER,
-    SCAN_INTERVAL_SECONDS,
-)
+from .const import DOMAIN, ROINTE_COORDINATOR, SCAN_INTERVAL_SECONDS
 from .coordinator import RointeDataUpdateCoordinator
-from .device_manager import RointeDeviceManager
 from .rointe_entity import RointeRadiatorEntity
 
 LOGGER = logging.getLogger(__name__)
@@ -45,26 +33,17 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up lookin sensors from the config entry."""
-    device_manager: RointeDeviceManager = hass.data[DOMAIN][entry.entry_id][
-        ROINTE_DEVICE_MANAGER
-    ]
+    """Set up the radiator sensors from the config entry."""
     coordinator: RointeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         ROINTE_COORDINATOR
     ]
 
-    entities: list[SensorEntity] = []
-
-    await coordinator.async_config_entry_first_refresh()
-
-    for device_id in device_manager.rointe_devices:
-        device = device_manager.rointe_devices[device_id]
-
-        entities.append(RointeHaSensor(radiator=device, coordinator=coordinator))
-        entities.append(RointeEnergySensor(radiator=device, coordinator=coordinator))
-        entities.append(RointePowerSensor(radiator=device, coordinator=coordinator))
-
-    async_add_entities(entities, True)
+    # Hook a callback for discovered entities for the sensor entities.
+    coordinator.add_entities_for_seen_keys(
+        async_add_entities,
+        [RointeHaSensor, RointeEnergySensor, RointePowerSensor],
+        "sensor",
+    )
 
 
 class RointeHaSensor(RointeRadiatorEntity, SensorEntity):
@@ -81,8 +60,9 @@ class RointeHaSensor(RointeRadiatorEntity, SensorEntity):
             key="current_temperature",
             name="Current Temperature",
             native_unit_of_measurement=TEMP_CELSIUS,
-            device_class=DEVICE_CLASS_TEMPERATURE,
-            state_class=STATE_CLASS_MEASUREMENT,
+            device_class=SensorDeviceClass.TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
         )
 
         # Set the name and ID of this sensor to be the radiator name/id and a prefix.
@@ -120,8 +100,9 @@ class RointeEnergySensor(RointeRadiatorEntity, SensorEntity):
             key="energy",
             name="Energy Consumption",
             native_unit_of_measurement=ENERGY_KILO_WATT_HOUR,
-            device_class=DEVICE_CLASS_ENERGY,
-            state_class=STATE_CLASS_TOTAL,
+            device_class=SensorDeviceClass.ENERGY,
+            state_class=SensorStateClass.TOTAL,
+            entity_category=EntityCategory.DIAGNOSTIC,
         )
 
         # Set the name and ID of this sensor to be the radiator name/id and a prefix.
@@ -144,16 +125,16 @@ class RointeEnergySensor(RointeRadiatorEntity, SensorEntity):
         """Return the current sensor value (KW/h)."""
         if self._radiator.energy_data:
             return self._radiator.energy_data.kwh
-        else:
-            return None
+
+        return None
 
     @property
     def last_reset(self) -> datetime | None:
         """Return the last time the sensor was initialized."""
         if self._radiator.energy_data:
             return self._radiator.energy_data.start
-        else:
-            return None
+
+        return None
 
 
 class RointePowerSensor(RointeRadiatorEntity, SensorEntity):
@@ -170,8 +151,9 @@ class RointePowerSensor(RointeRadiatorEntity, SensorEntity):
             key="power",
             name="Effective Power",
             native_unit_of_measurement=POWER_WATT,
-            device_class=DEVICE_CLASS_POWER,
-            state_class=STATE_CLASS_MEASUREMENT,
+            device_class=SensorDeviceClass.POWER,
+            state_class=SensorStateClass.MEASUREMENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
         )
 
         # Set the name and ID of this sensor to be the radiator name/id and a prefix.
@@ -194,5 +176,5 @@ class RointePowerSensor(RointeRadiatorEntity, SensorEntity):
         """Return the current sensor value (W)."""
         if self._radiator.energy_data:
             return self._radiator.energy_data.effective_power
-        else:
-            return None
+
+        return None
