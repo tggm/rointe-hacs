@@ -10,5 +10,5 @@
   "dependencies": [],
   "codeowners": ["@tggm"],
   "iot_class": "cloud_polling",
-  "version": "1.0.12"
+  "version": "1.0.13"
 }

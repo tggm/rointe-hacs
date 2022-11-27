@@ -148,7 +148,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
     @property
     def hvac_modes(self) -> list[str]:
         """Return hvac modes available."""
-        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.HEAT]
+        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
 
     @property
     def preset_modes(self) -> list[str]:
