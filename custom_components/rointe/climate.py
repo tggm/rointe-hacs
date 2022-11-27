@@ -5,23 +5,21 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 
-from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate.const import (
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_OFF,
-    HVAC_MODE_AUTO,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
+from rointesdk.device import RointeDevice
+
+from homeassistant.components.climate import (
     PRESET_COMFORT,
     PRESET_ECO,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
+    ClimateEntity,
+    ClimateEntityDescription,
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import PlatformNotReady
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
@@ -31,11 +29,9 @@ from .const import (
     DOMAIN,
     PRESET_ROINTE_ICE,
     ROINTE_COORDINATOR,
-    ROINTE_DEVICE_MANAGER,
     SCAN_INTERVAL_SECONDS,
 )
 from .coordinator import RointeDataUpdateCoordinator
-from .device_manager import RointeDevice, RointeDeviceManager
 from .rointe_entity import RointeRadiatorEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,31 +43,14 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Initialize all the rointe heaters found via API."""
-
-    device_manager: RointeDeviceManager = hass.data[DOMAIN][entry.entry_id][
-        ROINTE_DEVICE_MANAGER
-    ]
     coordinator: RointeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         ROINTE_COORDINATOR
     ]
 
-    entities = []
-
-    await coordinator.async_config_entry_first_refresh()
-
-    if not device_manager or not device_manager.rointe_devices:
-        raise PlatformNotReady
-
-    for device_id in device_manager.rointe_devices:
-        device = device_manager.rointe_devices[device_id]
-
-        entities.append(
-            RointeHaClimate(
-                manager=device_manager, radiator=device, coordinator=coordinator
-            )
-        )
-
-    async_add_entities(entities, True)
+    # Hook a callback for discovered entities, for RointeHaClimate entities.
+    coordinator.add_entities_for_seen_keys(
+        async_add_entities, [RointeHaClimate], "climate"
+    )
 
 
 class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
@@ -79,7 +58,6 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
 
     def __init__(
         self,
-        manager: RointeDeviceManager,
         radiator: RointeDevice,
         coordinator: RointeDataUpdateCoordinator,
     ) -> None:
@@ -89,7 +67,11 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
             coordinator, radiator, name=radiator.name, unique_id=radiator.id
         )
 
-        self._device_manager = manager
+        self.entity_description = ClimateEntityDescription(
+            key="radiator",
+            name="Radiator",
+            entity_category=EntityCategory.CONFIG,
+        )
 
     @property
     def available(self) -> bool:
@@ -107,9 +89,9 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
         if self._radiator.mode == "auto":
             if self._radiator.preset == "eco":
                 return self._radiator.eco_temp
-            elif self._radiator.preset == "comfort":
+            if self._radiator.preset == "comfort":
                 return self._radiator.comfort_temp
-            elif self._radiator.preset == "ice":
+            if self._radiator.preset == "ice":
                 return self._radiator.ice_temp
 
         return self._radiator.temp
@@ -152,9 +134,11 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
         return 7.0
 
     @property
-    def supported_features(self) -> int:
+    def supported_features(self) -> ClimateEntityFeature:
         """Flag supported features."""
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        )
 
     @property
     def target_temperature_step(self) -> float | None:
@@ -164,7 +148,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
     @property
     def hvac_modes(self) -> list[str]:
         """Return hvac modes available."""
-        return [HVAC_MODE_OFF, HVAC_MODE_HEAT, HVAC_MODE_AUTO]
+        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.HEAT]
 
     @property
     def preset_modes(self) -> list[str]:
@@ -175,12 +159,12 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
     def hvac_mode(self) -> str:
         """Return the current HVAC mode."""
         if not self._radiator.power:
-            return HVAC_MODE_OFF
+            return HVACMode.OFF
 
         if self._radiator.mode == "auto":
-            return HVAC_MODE_AUTO
-        else:
-            return HVAC_MODE_HEAT
+            return HVACMode.AUTO
+
+        return HVACMode.HEAT
 
     @property
     def hvac_action(self) -> str:
@@ -188,14 +172,14 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
 
         # Special mode for AUTO mode and waiting for schedule to activate.
         if self._radiator.mode == "auto" and self._radiator.preset == "off":
-            return CURRENT_HVAC_IDLE
+            return HVACAction.IDLE
 
         # Forced to off, either on Manual or Auto mode.
         if not self._radiator.power:
-            return CURRENT_HVAC_OFF
+            return HVACAction.OFF
 
         # Otherwise, it's heating.
-        return CURRENT_HVAC_HEAT
+        return HVACAction.HEATING
 
     @property
     def preset_mode(self) -> str | None:
@@ -203,19 +187,19 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
 
         if self._radiator.preset == "eco":
             return PRESET_ECO
-        elif self._radiator.preset == "comfort":
+        if self._radiator.preset == "comfort":
             return PRESET_COMFORT
-        elif self._radiator.preset == "ice":
+        if self._radiator.preset == "ice":
             return PRESET_ROINTE_ICE
-        else:
-            # Also captures "none" (man mode, temperature outside presets)
-            return None
+
+        # Also captures "none" (man mode, temperature outside presets)
+        return None
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         target_temperature = float(kwargs["temperature"])
 
-        if not await self._device_manager.send_command(
+        if not await self.get_device_manager().send_command(
             self._radiator, CMD_SET_TEMP, target_temperature
         ):
             _LOGGER.error(
@@ -231,7 +215,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
 
         _LOGGER.info("Setting HVAC mode to %s", hvac_mode)
 
-        if not await self._device_manager.send_command(
+        if not await self.get_device_manager().send_command(
             self._radiator, CMD_SET_HVAC_MODE, hvac_mode
         ):
             _LOGGER.error(
@@ -244,7 +228,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
         """Set new target preset mode."""
         _LOGGER.info("Setting preset mode: %s", preset_mode)
 
-        if not await self._device_manager.send_command(
+        if not await self.get_device_manager().send_command(
             self._radiator, CMD_SET_PRESET, preset_mode
         ):
             _LOGGER.error(
@@ -259,5 +243,6 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
         """Signal a radiator change."""
 
         # Update the data
+        _LOGGER.debug("_signal_thermostat_update")
         await self.coordinator.async_request_refresh()
         self.async_write_ha_state()

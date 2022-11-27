@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+from typing import Any
 
-from rointesdk.device import RointeDevice, ScheduleMode
+from rointesdk.device import DeviceFirmware, RointeDevice, ScheduleMode
 from rointesdk.dto import EnergyConsumptionData
 from rointesdk.rointe_api import ApiResponse, RointeAPI
 
-from homeassistant.components.climate.const import PRESET_COMFORT, PRESET_ECO
+from homeassistant.components.climate import PRESET_COMFORT, PRESET_ECO
 from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -22,6 +23,43 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def determine_latest_firmware(device_data, fw_map) -> str | None:
+    """Determine the latest FW available for a device."""
+
+    product = device_data["data"]["type"]
+    version = device_data["data"]["product_version"]
+
+    if product and version:
+        match product:
+            case "radiator":
+                if version == "v2":
+                    return fw_map.get(DeviceFirmware.RADIATOR_V2)
+
+                return fw_map.get(DeviceFirmware.RADIATOR_V1)
+
+            case "towel":
+                if version == "v2":
+                    return fw_map.get(DeviceFirmware.TOWEL_RAIL_V2)
+
+                return fw_map.get(DeviceFirmware.TOWEL_RAIL_V1)
+
+            case "acs":
+                if version == "v2":
+                    return fw_map.get(DeviceFirmware.WATER_HEATER_V2)
+
+                return fw_map.get(DeviceFirmware.WATER_HEATER_V1)
+
+            case "therm":
+                if version == "v2":
+                    return fw_map.get(DeviceFirmware.THERMO_V2)
+
+    _LOGGER.warning(
+        "Unable to determine Rointe latest FW for [%s]:[%s]", product, version
+    )
+
+    return None
 
 
 class RointeDeviceManager:
@@ -56,8 +94,8 @@ class RointeDeviceManager:
             for device in self.rointe_devices.values():
                 device.hass_available = False
 
-    async def update(self) -> bool:
-        """Retrieve the devices from the users installation."""
+    async def update(self) -> dict[str, Any]:
+        """Retrieve the devices from the user's installation."""
 
         installation_response: ApiResponse = await self.hass.async_add_executor_job(
             self.rointe_api.get_installation_by_id, self.installation_id, self.local_id
@@ -69,9 +107,11 @@ class RointeDeviceManager:
                 installation_response.error_message,
             )
             self._fail_all_devices()
-            return False
+            return {}
 
         installation = installation_response.data
+        discovered_devices: dict[str, RointeDevice] = {}
+        firmware_map = await self._get_firmware_map()
 
         for zone_key in installation["zones"]:
             zone = installation["zones"][zone_key]
@@ -104,9 +144,21 @@ class RointeDeviceManager:
                     else:
                         energy_data = None
 
-                    self._add_or_update_device(
-                        device_data_response.data, energy_data, device_id
+                    latest_fw = None
+
+                    if firmware_map:
+                        latest_fw = determine_latest_firmware(
+                            device_data_response.data, firmware_map
+                        )
+
+                    new_devices = self._add_or_update_device(
+                        device_data_response.data, energy_data, device_id, latest_fw
                     )
+
+                    if new_devices:
+                        for new_device in new_devices:
+                            discovered_devices[new_device.id] = new_device
+
                 else:
                     _LOGGER.warning(
                         "Failed getting device status for %s. Error: %s",
@@ -114,18 +166,43 @@ class RointeDeviceManager:
                         device_data_response.error_message,
                     )
 
-        return True
+                    devices[device_id].hass_available = False
+
+        return discovered_devices
+
+    async def _get_firmware_map(self) -> dict[str, str] | None:
+        """Retrieve the latest firmware map for all rointe devices."""
+        firmware_map_response: ApiResponse = await self.hass.async_add_executor_job(
+            self.rointe_api.get_latest_firmware
+        )
+
+        if firmware_map_response and firmware_map_response.success:
+            return firmware_map_response.data
+
+        _LOGGER.error(
+            "Unable to fetch Rointe firmware update map: %s",
+            firmware_map_response.error_message,
+        )
+        return None
 
     def _add_or_update_device(
-        self, device_data, energy_stats: EnergyConsumptionData, device_id: str
-    ) -> None:
-        """Process a device from the API and add or update it."""
+        self,
+        device_data,
+        energy_stats: EnergyConsumptionData,
+        device_id: str,
+        latest_fw: str | None,
+    ) -> list[RointeDevice] | None:
+        """Process a device from the API and add or update it.
+
+        Return a list of newly discovered devices.
+        """
 
         device_data_data = device_data.get("data", None)
+        new_devices = []
 
         if not device_data_data:
             _LOGGER.error("Device ID %s has no valid data. Ignoring", device_id)
-            return
+            return None
 
         if device_id in self.rointe_devices:
             # Existing device, update it.
@@ -134,9 +211,9 @@ class RointeDeviceManager:
             if not target_device.hass_available:
                 _LOGGER.info("Restoring device %s", target_device.name)
 
-            target_device.update_data(device_data, energy_stats)
+            target_device.update_data(device_data, energy_stats, latest_fw)
 
-            _LOGGER.debug(
+            _LOGGER.info(
                 "Updating [%s] => Power: %s, Status: %s, Mode: %s, Temp: %s",
                 device_data_data.get("name", "N/A"),
                 target_device.power,
@@ -151,23 +228,29 @@ class RointeDeviceManager:
 
                 if device_type not in ROINTE_SUPPORTED_DEVICES:
                     _LOGGER.warning("Ignoring Rointe device type %s", device_type)
-                    return
+                    return None
 
                 _LOGGER.info(
-                    "Adding device %s [%s] - %s",
+                    "Found new device %s [%s] - %s",
                     device_data_data.get("name", "N/A"),
                     device_data_data.get("type", "N/A"),
                     device_data_data.get("product_version", "N/A"),
                 )
 
-                self.rointe_devices[device_id] = RointeDevice(
+                rointe_device = RointeDevice(
                     device_info=device_data,
                     device_id=device_id,
                     energy_data=energy_stats,
+                    latest_fw=latest_fw,
                 )
+
+                new_devices.append(rointe_device)
+                self.rointe_devices[device_id] = rointe_device
 
             except Exception as ex:  # pylint: disable=broad-except
                 _LOGGER.error("Unable to process device %s. Error: %s", device_id, ex)
+
+        return new_devices
 
     async def send_command(self, device: RointeDevice, command: str, arg) -> bool:
         """Send command to the device."""
@@ -228,7 +311,6 @@ class RointeDeviceManager:
 
         # Update the device's internal status
         if hvac_mode == "off":
-            # TODO: In auto mode should the temp be set?
             if device.mode == "manual":
                 device.temp = RADIATOR_DEFAULT_TEMPERATURE
 
@@ -272,7 +354,6 @@ class RointeDeviceManager:
         if not result.success:
             # Set the device as unavailable.
             device.hass_available = False
-
             return False
 
         # Update the device internal status

@@ -15,6 +15,7 @@ from .const import (
     CONF_PASSWORD,
     CONF_USERNAME,
     DOMAIN,
+    PLATFORMS,
     ROINTE_API_MANAGER,
     ROINTE_COORDINATOR,
     ROINTE_DEVICE_MANAGER,
@@ -25,8 +26,6 @@ from .coordinator import RointeDataUpdateCoordinator
 from .device_manager import RointeDeviceManager
 
 _LOGGER = logging.getLogger(__name__)
-
-PLATFORMS: list[str] = ["climate", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -48,6 +47,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady("Unable to connect to Rointe API.")
 
     return bool(success)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry and removes event handlers."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    if unload_ok:
+        coordinator: RointeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
+            ROINTE_COORDINATOR
+        ]
+
+        while coordinator.cleanup_callbacks:
+            coordinator.cleanup_callbacks.pop()()
+
+    return unload_ok
 
 
 async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -83,15 +97,8 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = RointeDataUpdateCoordinator(hass, device_manager)
     hass.data[DOMAIN][entry.entry_id][ROINTE_COORDINATOR] = coordinator
 
+    await coordinator.async_config_entry_first_refresh()
+
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
     return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok

@@ -2,5 +2,5 @@
   "name": "Rointe Radiators HACS",
   "content_in_root": false,
   "render_readme": true,
-  "homeassistant": "2021.5.1"
+  "homeassistant": "2022.12.0"
 }

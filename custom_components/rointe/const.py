@@ -3,6 +3,8 @@
 DOMAIN = "rointe"
 DEVICE_DOMAIN = "climate"
 ATTRIBUTION = "Data provided by rointeconnect.com"
+PLATFORMS: list[str] = ["climate", "sensor", "update"]
+
 
 # Rointe's firebase app values.
 FIREBASE_APP_KEY = "AIzaSyBi1DFJlBr9Cezf2BwfaT-PRPYmi3X3pdA"
@@ -16,12 +18,12 @@ AUTH_VERIFY_URL = "/identitytoolkit/v3/relyingparty/verifyPassword"
 AUTH_ACCT_INFO_URL = "/identitytoolkit/v3/relyingparty/getAccountInfo"
 AUTH_TIMEOUT_SECONDS = 15
 
-
 CONF_USERNAME = "rointe_username"
 CONF_PASSWORD = "rointe_password"
 CONF_INSTALLATION = "rointe_installation"
 CONF_LOCAL_ID = "rointe_local_id"
 
+ROINTE_MANUFACTURER = "Rointe"
 ROINTE_API_MANAGER = "rointe_api_manager"
 ROINTE_DEVICE_MANAGER = "rointe_device_manager"
 ROINTE_COORDINATOR = "rointe_coordinator"
