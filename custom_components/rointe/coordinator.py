@@ -1,9 +1,11 @@
 """Provides the Rointe DataUpdateCoordinator."""
 from __future__ import annotations
 
+import datetime
 from collections.abc import Callable
 from datetime import timedelta
 import logging
+from random import randrange
 from typing import Any
 
 from rointesdk.device import RointeDevice
@@ -11,6 +13,8 @@ from rointesdk.device import RointeDevice
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers import device_registry
+
 
 from .const import DOMAIN, PLATFORMS, ROINTE_API_REFRESH_SECONDS
 from .device_manager import RointeDeviceManager
@@ -46,9 +50,10 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
 
         for device_id, device in devices.items():
             for platform in PLATFORMS:
-                # We need to keep two lists. One for each platform.
                 if device_id not in self.unregistered_keys[platform]:
                     self.unregistered_keys[platform][device_id] = device
+
+            device_update_info(self.hass, device)
 
         return devices
 
@@ -59,11 +64,11 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
         entity_constructor_list: list[Any],
         platform: str,
     ) -> None:
-        """Add entities for new devices."""
+        """Add entities for new devices, for a given platform."""
 
         @callback
         def _add_entities_for_unregistered_keys() -> None:
-            """Add entities for keys seen for the first time."""
+            """Handle creating new entities."""
             new_entities: list = []
             discovered_devices: dict[str, RointeDevice] = self.data
 
@@ -80,9 +85,31 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
 
         # End callback.
 
+        # Add entities for keys seen for the first time.
         _add_entities_for_unregistered_keys()
 
-        # The inner callback is called by the coordinator after update.
+        # The inner callback is called by the coordinator after the update.
+        # The callback captures the outer method argument values.
         self.cleanup_callbacks.append(
             self.async_add_listener(_add_entities_for_unregistered_keys)
+        )
+
+
+@callback
+def device_update_info(
+    hass: HomeAssistant,
+    rointe_device: RointeDevice
+) -> None:
+    """Update device registry info."""
+
+    _LOGGER.debug("Updating device registry info for %s", rointe_device.name)
+
+    dev_registry = device_registry.async_get(hass)
+
+    if device := dev_registry.async_get_device(
+        identifiers={(DOMAIN, rointe_device.id)},
+    ):
+        dev_registry.async_update_device(
+            device.id,
+            sw_version=rointe_device.firmware_version
         )

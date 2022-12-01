@@ -1,4 +1,4 @@
-"""Rointe HA base entity."""
+"""Rointe devices entity model."""
 from __future__ import annotations
 
 from homeassistant.const import ATTR_ATTRIBUTION
@@ -49,7 +49,7 @@ class RointeHAEntity(CoordinatorEntity):
 
 
 class RointeRadiatorEntity(RointeHAEntity):
-    """Base class for Rointe entities (climate and sensors)."""
+    """Base class for entities that support a Radiator device (climate and sensors)."""
 
     def __init__(
         self,
@@ -59,7 +59,6 @@ class RointeRadiatorEntity(RointeHAEntity):
         unique_id: str,
     ) -> None:
         """Initialize the entity."""
-
         super().__init__(coordinator, name, unique_id)
         self._radiator = radiator
         self._signal_update = None
@@ -67,17 +66,22 @@ class RointeRadiatorEntity(RointeHAEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return a device description for device registry."""
+
+        if self._radiator.rointe_product:
+            product_name = self._radiator.rointe_product.product_name
+        else:
+            product_name = f"{self._radiator.type.capitalize()} {self._radiator.product_version.capitalize()}",
+
         return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._radiator.id}")},
+            identifiers={(DOMAIN, self._radiator.id)},
             manufacturer=ROINTE_MANUFACTURER,
             name=self._radiator.name,
-            model=f"{self._radiator.type} {self._radiator.product_version}",
+            model=product_name,
             sw_version=self._radiator.firmware_version,
         )
 
     async def async_added_to_hass(self):
         """Listen for signals for services."""
-
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,

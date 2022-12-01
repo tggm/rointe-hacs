@@ -32,7 +32,7 @@ async def async_setup_entry(
         ROINTE_COORDINATOR
     ]
 
-    # Hook a callback for discovered entities for the update entity.
+    # Register the Entity classes and platform on the coordinator.
     coordinator.add_entities_for_seen_keys(
         async_add_entities,
         [RointeUpdateEntity],
@@ -49,19 +49,20 @@ class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity):
         coordinator: RointeDataUpdateCoordinator,
     ) -> None:
         """Init the update entity."""
-        description = UpdateEntityDescription(
-            key="fw_update_available",
-            name="Update Available",
-            device_class=UpdateDeviceClass.FIRMWARE,
-            entity_category=EntityCategory.DIAGNOSTIC,
-        )
 
         # Set the name and ID of this entity to be the radiator name/id and a prefix.
         super().__init__(
             coordinator,
             radiator,
-            name=f"{radiator.name} {description.name}",
-            unique_id=f"{radiator.id}-{description.key}",
+            name=f"{radiator.name} Update Available",
+            unique_id=f"{radiator.id}-fw_update_available",
+        )
+
+        self.entity_description = UpdateEntityDescription(
+            key="fw_update_available",
+            name="Update Available",
+            device_class=UpdateDeviceClass.FIRMWARE,
+            entity_category=EntityCategory.DIAGNOSTIC,
         )
 
     @property

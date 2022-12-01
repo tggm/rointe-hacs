@@ -6,9 +6,11 @@ from datetime import datetime
 import logging
 from typing import Any
 
-from rointesdk.device import DeviceFirmware, RointeDevice, ScheduleMode
+from rointesdk.device import  RointeDevice, ScheduleMode
+from rointesdk.model import RointeProduct
 from rointesdk.dto import EnergyConsumptionData
 from rointesdk.rointe_api import ApiResponse, RointeAPI
+from rointesdk.utils import get_product_by_type_version
 
 from homeassistant.components.climate import PRESET_COMFORT, PRESET_ECO
 from homeassistant.core import HomeAssistant
@@ -28,38 +30,28 @@ _LOGGER = logging.getLogger(__name__)
 def determine_latest_firmware(device_data, fw_map) -> str | None:
     """Determine the latest FW available for a device."""
 
-    product = device_data["data"]["type"]
-    version = device_data["data"]["product_version"]
+    if not device_data or "data" not in device_data:
+        return None
 
-    if product and version:
-        match product:
-            case "radiator":
-                if version == "v2":
-                    return fw_map.get(DeviceFirmware.RADIATOR_V2)
+    product_type = device_data["data"].get("type", None)
+    version = device_data["data"].get("product_version", None)
+    current_firmware = device_data["firmware"].get("firmware_version_device", None)
 
-                return fw_map.get(DeviceFirmware.RADIATOR_V1)
+    if not product_type or not version or not current_firmware:
+        _LOGGER.warning("Unable to determine latest FW for [%s][%s] at v[%s]", product_type, version, current_firmware)
+        return None
 
-            case "towel":
-                if version == "v2":
-                    return fw_map.get(DeviceFirmware.TOWEL_RAIL_V2)
+    product = get_product_by_type_version(product_type, version)
 
-                return fw_map.get(DeviceFirmware.TOWEL_RAIL_V1)
+    if not product:
+        _LOGGER.warning("Product not found: [%s][%s] at v[%s]", product_type, version, current_firmware)
+        return None
 
-            case "acs":
-                if version == "v2":
-                    return fw_map.get(DeviceFirmware.WATER_HEATER_V2)
+    if product in fw_map and version in fw_map[product]:
+        return fw_map[product][version]
 
-                return fw_map.get(DeviceFirmware.WATER_HEATER_V1)
-
-            case "therm":
-                if version == "v2":
-                    return fw_map.get(DeviceFirmware.THERMO_V2)
-
-    _LOGGER.warning(
-        "Unable to determine Rointe latest FW for [%s]:[%s]", product, version
-    )
-
-    return None
+    # If no update path available return the current firmware string.
+    return current_firmware
 
 
 class RointeDeviceManager:
@@ -94,7 +86,7 @@ class RointeDeviceManager:
             for device in self.rointe_devices.values():
                 device.hass_available = False
 
-    async def update(self) -> dict[str, Any]:
+    async def update(self) -> dict[str, list[RointeDevice]]:
         """Retrieve the devices from the user's installation."""
 
         installation_response: ApiResponse = await self.hass.async_add_executor_job(
@@ -110,7 +102,7 @@ class RointeDeviceManager:
             return {}
 
         installation = installation_response.data
-        discovered_devices: dict[str, RointeDevice] = {}
+        discovered_devices: dict[str, list[RointeDevice]] = {}
         firmware_map = await self._get_firmware_map()
 
         for zone_key in installation["zones"]:
@@ -171,7 +163,7 @@ class RointeDeviceManager:
         return discovered_devices
 
     async def _get_firmware_map(self) -> dict[str, str] | None:
-        """Retrieve the latest firmware map for all rointe devices."""
+        """Retrieve the latest firmware map for all rointe products."""
         firmware_map_response: ApiResponse = await self.hass.async_add_executor_job(
             self.rointe_api.get_latest_firmware
         )

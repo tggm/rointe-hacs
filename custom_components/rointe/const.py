@@ -5,19 +5,6 @@ DEVICE_DOMAIN = "climate"
 ATTRIBUTION = "Data provided by rointeconnect.com"
 PLATFORMS: list[str] = ["climate", "sensor", "update"]
 
-
-# Rointe's firebase app values.
-FIREBASE_APP_KEY = "AIzaSyBi1DFJlBr9Cezf2BwfaT-PRPYmi3X3pdA"
-FIREBASE_DEFAULT_URL = "https://elife-prod.firebaseio.com"
-FIREBASE_INSTALLATIONS_PATH = "/installations2.json"
-FIREBASE_DEVICES_PATH_BY_ID = "/devices/{}.json"
-FIREBASE_DEVICE_DATA_PATH_BY_ID = "/devices/{}/data.json"
-
-AUTH_HOST = "https://www.googleapis.com"
-AUTH_VERIFY_URL = "/identitytoolkit/v3/relyingparty/verifyPassword"
-AUTH_ACCT_INFO_URL = "/identitytoolkit/v3/relyingparty/getAccountInfo"
-AUTH_TIMEOUT_SECONDS = 15
-
 CONF_USERNAME = "rointe_username"
 CONF_PASSWORD = "rointe_password"
 CONF_INSTALLATION = "rointe_installation"

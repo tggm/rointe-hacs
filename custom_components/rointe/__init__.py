@@ -78,11 +78,11 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not login_result.success:
         _LOGGER.error(
-            f"Unable to authenticate to Rointe API: {login_result.error_message}"
+            "Unable to authenticate to Rointe API: %s", login_result.error_message
         )
         return False
 
-    device_manager = RointeDeviceManager(
+    rointe_device_manager = RointeDeviceManager(
         username=entry.data[CONF_USERNAME],
         password=entry.data[CONF_PASSWORD],
         installation_id=entry.data[CONF_INSTALLATION],
@@ -91,13 +91,13 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         rointe_api=api,
     )
 
-    hass.data[DOMAIN][entry.entry_id][ROINTE_DEVICE_MANAGER] = device_manager
+    hass.data[DOMAIN][entry.entry_id][ROINTE_DEVICE_MANAGER] = rointe_device_manager
     hass.data[DOMAIN][entry.entry_id][ROINTE_API_MANAGER] = api
 
-    coordinator = RointeDataUpdateCoordinator(hass, device_manager)
-    hass.data[DOMAIN][entry.entry_id][ROINTE_COORDINATOR] = coordinator
+    rointe_coordinator = RointeDataUpdateCoordinator(hass, rointe_device_manager)
+    hass.data[DOMAIN][entry.entry_id][ROINTE_COORDINATOR] = rointe_coordinator
 
-    await coordinator.async_config_entry_first_refresh()
+    await rointe_coordinator.async_config_entry_first_refresh()
 
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 

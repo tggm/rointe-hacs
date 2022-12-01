@@ -91,13 +91,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 return await self.async_step_installation(None)
 
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 errors["base"] = str(ex)
 
-        # TODO -> ?
         if user_input is None:
             user_input = {}
-        # TODO -> ?
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
