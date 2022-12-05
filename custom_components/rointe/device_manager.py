@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
-from typing import Any
 
-from rointesdk.device import  RointeDevice, ScheduleMode
-from rointesdk.model import RointeProduct
+from rointesdk.device import RointeDevice, ScheduleMode
 from rointesdk.dto import EnergyConsumptionData
 from rointesdk.rointe_api import ApiResponse, RointeAPI
 from rointesdk.utils import get_product_by_type_version
@@ -38,13 +36,23 @@ def determine_latest_firmware(device_data, fw_map) -> str | None:
     current_firmware = device_data["firmware"].get("firmware_version_device", None)
 
     if not product_type or not version or not current_firmware:
-        _LOGGER.warning("Unable to determine latest FW for [%s][%s] at v[%s]", product_type, version, current_firmware)
+        _LOGGER.warning(
+            "Unable to determine latest FW for [%s][%s] at v[%s]",
+            product_type,
+            version,
+            current_firmware,
+        )
         return None
 
     product = get_product_by_type_version(product_type, version)
 
     if not product:
-        _LOGGER.warning("Product not found: [%s][%s] at v[%s]", product_type, version, current_firmware)
+        _LOGGER.warning(
+            "Product not found: [%s][%s] at v[%s]",
+            product_type,
+            version,
+            current_firmware,
+        )
         return None
 
     if product in fw_map and version in fw_map[product]:
@@ -89,6 +97,8 @@ class RointeDeviceManager:
     async def update(self) -> dict[str, list[RointeDevice]]:
         """Retrieve the devices from the user's installation."""
 
+        _LOGGER.debug("Device manager updating")
+
         installation_response: ApiResponse = await self.hass.async_add_executor_job(
             self.rointe_api.get_installation_by_id, self.installation_id, self.local_id
         )
@@ -105,16 +115,25 @@ class RointeDeviceManager:
         discovered_devices: dict[str, list[RointeDevice]] = {}
         firmware_map = await self._get_firmware_map()
 
+        _LOGGER.debug("Processing zones")
+
         for zone_key in installation["zones"]:
+            _LOGGER.debug("Processing zone: %s", zone_key)
+
             zone = installation["zones"][zone_key]
 
             if "devices" not in zone:
+                _LOGGER.debug("No devices info found for zone")
                 continue
 
             devices = zone["devices"]
 
             for device_id in devices:
+                _LOGGER.debug("Processing device ID: %s", device_id)
+
                 if not devices[device_id]:
+                    _LOGGER.debug("Device ID: %s has no data", device_id)
+
                     continue
 
                 device_data_response: ApiResponse = (
@@ -201,11 +220,11 @@ class RointeDeviceManager:
             target_device = self.rointe_devices[device_id]
 
             if not target_device.hass_available:
-                _LOGGER.info("Restoring device %s", target_device.name)
+                _LOGGER.debug("Restoring device %s", target_device.name)
 
             target_device.update_data(device_data, energy_stats, latest_fw)
 
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Updating [%s] => Power: %s, Status: %s, Mode: %s, Temp: %s",
                 device_data_data.get("name", "N/A"),
                 target_device.power,
@@ -219,10 +238,10 @@ class RointeDeviceManager:
                 device_type = device_data["data"]["type"]
 
                 if device_type not in ROINTE_SUPPORTED_DEVICES:
-                    _LOGGER.warning("Ignoring Rointe device type %s", device_type)
+                    _LOGGER.warning("Ignoring Rointe device of type %s", device_type)
                     return None
 
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Found new device %s [%s] - %s",
                     device_data_data.get("name", "N/A"),
                     device_data_data.get("type", "N/A"),
@@ -246,6 +265,8 @@ class RointeDeviceManager:
 
     async def send_command(self, device: RointeDevice, command: str, arg) -> bool:
         """Send command to the device."""
+
+        _LOGGER.debug("Sending command [%s] to device ID [%s]", command, device.id)
 
         if command == CMD_SET_TEMP:
             return await self._set_device_temp(device, arg)

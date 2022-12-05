@@ -44,6 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if not hass.data[DOMAIN]:
             hass.data.pop(DOMAIN)
 
+        _LOGGER.error("Config entry not ready in async_setup_entry")
         raise ConfigEntryNotReady("Unable to connect to Rointe API.")
 
     return bool(success)
@@ -71,6 +72,8 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         RointeAPI, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD]
     )
 
+    _LOGGER.debug("Device manager: Initializing auth")
+
     # Login to the Rointe API.
     login_result: ApiResponse = await hass.async_add_executor_job(
         api.initialize_authentication
@@ -94,11 +97,15 @@ async def init_device_manager(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id][ROINTE_DEVICE_MANAGER] = rointe_device_manager
     hass.data[DOMAIN][entry.entry_id][ROINTE_API_MANAGER] = api
 
+    _LOGGER.debug("Device manager: Initializing Data Coordinator")
+
     rointe_coordinator = RointeDataUpdateCoordinator(hass, rointe_device_manager)
     hass.data[DOMAIN][entry.entry_id][ROINTE_COORDINATOR] = rointe_coordinator
 
+    _LOGGER.debug("Device manager: First Refresh")
     await rointe_coordinator.async_config_entry_first_refresh()
 
+    _LOGGER.debug("Device manager: Setup platforms")
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
     return True

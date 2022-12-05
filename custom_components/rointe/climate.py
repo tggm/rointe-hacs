@@ -47,6 +47,8 @@ async def async_setup_entry(
         ROINTE_COORDINATOR
     ]
 
+    _LOGGER.debug("Climate Platform: Async setup entry")
+
     # Register the Entity classes and platform on the coordinator.
     coordinator.add_entities_for_seen_keys(
         async_add_entities, [RointeHaClimate], "climate"
@@ -218,7 +220,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
 
-        _LOGGER.info("Setting HVAC mode to %s", hvac_mode)
+        _LOGGER.debug("Setting HVAC mode to %s", hvac_mode)
 
         if not await self.get_device_manager().send_command(
             self._radiator, CMD_SET_HVAC_MODE, hvac_mode
@@ -231,7 +233,7 @@ class RointeHaClimate(RointeRadiatorEntity, ClimateEntity):
 
     async def async_set_preset_mode(self, preset_mode):
         """Set new target preset mode."""
-        _LOGGER.info("Setting preset mode: %s", preset_mode)
+        _LOGGER.debug("Setting preset mode: %s", preset_mode)
 
         if not await self.get_device_manager().send_command(
             self._radiator, CMD_SET_PRESET, preset_mode

@@ -63,8 +63,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     rointe_api.initialize_authentication
                 )
 
-                if not rointe_api.is_logged_in():
-                    raise Exception(login_error_code)
+                if not login_error_code.success or not rointe_api.is_logged_in():
+                    raise Exception(login_error_code.error_message)
 
                 local_id_response = await self.hass.async_add_executor_job(
                     rointe_api.get_local_id
@@ -94,9 +94,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as ex:  # pylint: disable=broad-except
                 errors["base"] = str(ex)
 
-        if user_input is None:
-            user_input = {}
-
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )
@@ -116,6 +113,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_PASSWORD: self.step_user_data[CONF_PASSWORD],
                 CONF_LOCAL_ID: self.step_user_local_id,
             }
+
+            _LOGGER.debug(
+                "Config flow completed for zone [%s]", user_data[CONF_INSTALLATION]
+            )
 
             return self.async_create_entry(
                 title=self.step_user_installations[user_input[CONF_INSTALLATION]],

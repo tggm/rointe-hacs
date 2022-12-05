@@ -1,20 +1,17 @@
 """Provides the Rointe DataUpdateCoordinator."""
 from __future__ import annotations
 
-import datetime
 from collections.abc import Callable
 from datetime import timedelta
 import logging
-from random import randrange
 from typing import Any
 
 from rointesdk.device import RointeDevice
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers import device_registry
-
 
 from .const import DOMAIN, PLATFORMS, ROINTE_API_REFRESH_SECONDS
 from .device_manager import RointeDeviceManager
@@ -96,10 +93,7 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
 
 
 @callback
-def device_update_info(
-    hass: HomeAssistant,
-    rointe_device: RointeDevice
-) -> None:
+def device_update_info(hass: HomeAssistant, rointe_device: RointeDevice) -> None:
     """Update device registry info."""
 
     _LOGGER.debug("Updating device registry info for %s", rointe_device.name)
@@ -110,6 +104,5 @@ def device_update_info(
         identifiers={(DOMAIN, rointe_device.id)},
     ):
         dev_registry.async_update_device(
-            device.id,
-            sw_version=rointe_device.firmware_version
+            device.id, sw_version=rointe_device.firmware_version
         )
