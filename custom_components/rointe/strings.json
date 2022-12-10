@@ -9,10 +9,8 @@
       }
     },
     "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]",
-      "response_invalid": "Invalid response"
+      "invalid_auth": "Invalid authentication",
+      "unable_get_installations": "An error occurred while retrieving installations"
     },
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"

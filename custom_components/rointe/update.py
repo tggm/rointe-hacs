@@ -1,7 +1,7 @@
 """Update entity platform for Rointe devices."""
 from __future__ import annotations
 
-import logging
+from abc import ABC
 
 from rointesdk.device import RointeDevice
 
@@ -15,11 +15,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ROINTE_COORDINATOR
+from .const import DOMAIN
 from .coordinator import RointeDataUpdateCoordinator
 from .rointe_entity import RointeRadiatorEntity
-
-LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -28,9 +26,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the radiator sensors from the config entry."""
-    coordinator: RointeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        ROINTE_COORDINATOR
-    ]
+    coordinator: RointeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     # Register the Entity classes and platform on the coordinator.
     coordinator.add_entities_for_seen_keys(
@@ -40,7 +36,7 @@ async def async_setup_entry(
     )
 
 
-class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity):
+class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity, ABC):
     """Update entity."""
 
     def __init__(
@@ -50,19 +46,19 @@ class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity):
     ) -> None:
         """Init the update entity."""
 
+        self.entity_description = UpdateEntityDescription(
+            key="fw_update_available",
+            name="Update Available",
+            device_class=UpdateDeviceClass.FIRMWARE,
+            entity_category=EntityCategory.DIAGNOSTIC,
+        )
+
         # Set the name and ID of this entity to be the radiator name/id and a prefix.
         super().__init__(
             coordinator,
             radiator,
             name=f"{radiator.name} Update Available",
             unique_id=f"{radiator.id}-fw_update_available",
-        )
-
-        self.entity_description = UpdateEntityDescription(
-            key="fw_update_available",
-            name="Update Available",
-            device_class=UpdateDeviceClass.FIRMWARE,
-            entity_category=EntityCategory.DIAGNOSTIC,
         )
 
     @property

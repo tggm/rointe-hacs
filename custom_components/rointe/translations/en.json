@@ -4,10 +4,8 @@
             "already_configured": "Device is already configured"
         },
         "error": {
-            "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "response_invalid": "Unexpected error",
-            "unknown": "Unexpected error"
+            "unable_get_installations": "An error occurred while retrieving installations"
         },
         "step": {
             "user": {
