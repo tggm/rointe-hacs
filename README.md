@@ -1,7 +1,25 @@
-# rointe-hacs
+# 🌞 rointe-hacs 
+A minimal integration for Rointe radiators in Home Assistant. 🏡
 
-This is a minimal integration foir Rointe heating devices. It mainly targets the Series-D radiators but other devices 
-are supported.
+### Supported Devices
+* Series-D Radiators
+* Belize and Olympia Radiators (experimental)
+* Series-D Towel rails
+* Thermostats (experimental)
 
-# Important Note
-This integration is in review to be added to the official Homeassistant repository.
+## Features
+* Ability to control the temperature
+* Provides a sensor with the current temperature, as measured by the device.
+* Choose between presets (Eco, Comfort) or Manual Mode
+* Notification of firmware updates available
+* Energy data (Current power and consumed energy)
+
+## Upcoming features
+These will only be made available after the integration is accepted by the official
+Home Assistant repository. Since it's currently in review all new features are frozen.
+
+* Configure preset temperatures
+* Control screen brightness (for elegible devices)
+* Control screen color.
+
+
