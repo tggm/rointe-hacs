@@ -8,6 +8,7 @@ from typing import Any
 
 from rointesdk.device import RointeDevice, ScheduleMode
 from rointesdk.dto import EnergyConsumptionData
+from rointesdk.model import RointeProduct
 from rointesdk.rointe_api import ApiResponse, RointeAPI
 from rointesdk.utils import get_product_by_type_version
 
@@ -31,7 +32,7 @@ from .const import (
 
 
 def determine_latest_firmware(
-    device_data: dict[str, Any], fw_map: dict[str, str]
+    device_data: dict[str, Any], fw_map: dict[RointeProduct, dict[str, str]]
 ) -> str | None:
     """Determine the latest FW available for a device."""
 
@@ -60,8 +61,8 @@ def determine_latest_firmware(
         )
         return None
 
-    if product in fw_map and version in fw_map[product]:
-        return fw_map[product][version]
+    if product in fw_map and current_firmware in fw_map[product]:
+        return fw_map[product][current_firmware]
 
     # If no update path available return the current firmware string.
     return current_firmware
@@ -118,6 +119,11 @@ class RointeDeviceManager:
             return {}
 
         installation = installation_response.data
+
+        import pprint
+        LOGGER.debug("Installation Data response:")
+        LOGGER.debug(pprint.pformat(installation))
+
         discovered_devices: dict[str, list[RointeDevice]] = {}
 
         # device_id -> (base data future, energy data future)
@@ -162,7 +168,9 @@ class RointeDeviceManager:
         firmware_map_response: ApiResponse = firmware_map_future.result()
 
         if firmware_map_response.success and firmware_map_response.data:
-            firmware_map = firmware_map_response.data
+            firmware_map: dict[
+                RointeProduct, dict[str, str]
+            ] | None = firmware_map_response.data
         else:
             LOGGER.error(
                 "Unable to fetch firmware map: %s",
@@ -197,7 +205,7 @@ class RointeDeviceManager:
         base_data_response: ApiResponse,
         device_id: str,
         energy_data_response: ApiResponse,
-        firmware_map: dict[str, str],
+        firmware_map: dict[RointeProduct, dict[str, str]] | None,
     ) -> RointeDevice | None:
         """Process the data related to a single device."""
 

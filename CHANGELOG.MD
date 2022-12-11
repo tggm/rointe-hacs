@@ -1,5 +1,7 @@
 Changelog
 ---
+## v1.2.5
+- Extended logging.
 
 ## V1.2.4
 - Refresh from the main repo. 
