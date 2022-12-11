@@ -1,7 +1,10 @@
 Changelog
 ---
+## v1.2.6
+- Extended debugging during setup.
+
 ## v1.2.5
-- Extended logging.
+- Bugfixes
 
 ## V1.2.4
 - Refresh from the main repo. 
