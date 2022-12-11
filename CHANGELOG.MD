@@ -1,5 +1,9 @@
 Changelog
 ---
+
+## v1.2.7
+- Experimental support for Belize/Olympia radiators
+
 ## v1.2.6
 - Extended debugging during setup.
 

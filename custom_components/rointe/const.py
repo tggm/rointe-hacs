@@ -15,7 +15,7 @@ CONF_INSTALLATION = "rointe_installation"
 
 ROINTE_MANUFACTURER = "Rointe"
 
-ROINTE_SUPPORTED_DEVICES = ["radiator", "towel", "therm"]
+ROINTE_SUPPORTED_DEVICES = ["radiator", "towel", "therm", "radiatorb"]
 
 CMD_SET_TEMP = "cmd_set_temp"
 CMD_SET_PRESET = "cmd_set_preset"

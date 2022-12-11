@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import pprint
 from datetime import datetime
 from typing import Any
 
@@ -120,7 +121,6 @@ class RointeDeviceManager:
 
         installation = installation_response.data
 
-        import pprint
         LOGGER.debug("Installation Data response:")
         LOGGER.debug(pprint.pformat(installation))
 
@@ -209,7 +209,11 @@ class RointeDeviceManager:
     ) -> RointeDevice | None:
         """Process the data related to a single device."""
 
+        LOGGER.debug("Processing data for device ID: %s", device_id)
+
         if base_data_response.success:
+            LOGGER.debug("Base Data:")
+            LOGGER.debug(pprint.pformat(base_data_response.data))
             base_data = base_data_response.data
         else:
             LOGGER.warning(
@@ -225,6 +229,8 @@ class RointeDeviceManager:
             return None
 
         if energy_data_response.success:
+            LOGGER.debug("Energy Data:")
+            LOGGER.debug(pprint.pformat(energy_data_response.data))
             energy_data = energy_data_response.data
         else:
             energy_data = None
