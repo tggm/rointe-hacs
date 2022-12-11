@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import pprint
 from datetime import datetime
 from typing import Any
 
@@ -107,23 +106,21 @@ class RointeDeviceManager:
 
         LOGGER.debug("Device manager updating")
 
-        installation_response: ApiResponse = await self.hass.async_add_executor_job(
-            self.rointe_api.get_installation_by_id, self.installation_id
+        installation_devices_response: ApiResponse = (
+            await self.hass.async_add_executor_job(
+                self.rointe_api.get_installation_devices, self.installation_id
+            )
         )
 
-        if not installation_response.success:
+        if not installation_devices_response.success:
             LOGGER.error(
-                "Unable to get Rointe Installations. Error: %s",
-                installation_response.error_message,
+                "Unable to get zone devices. Error: %s",
+                installation_devices_response.error_message,
             )
             self._fail_all_devices()
             return {}
 
-        installation = installation_response.data
-
-        LOGGER.debug("Installation Data response:")
-        LOGGER.debug(pprint.pformat(installation))
-
+        user_device_ids: list[str] = installation_devices_response.data
         discovered_devices: dict[str, list[RointeDevice]] = {}
 
         # device_id -> (base data future, energy data future)
@@ -138,28 +135,17 @@ class RointeDeviceManager:
 
         # Dispatch API calls for all devices, in all zones. Each device requires a call
         # to retrieve its base data and another one for energy data.
-        for zone_key in installation["zones"]:
-            zone = installation["zones"][zone_key]
+        for device_id in user_device_ids:
+            LOGGER.debug("Found device ID: %s", device_id)
+            futures = (
+                self.hass.async_add_executor_job(self.rointe_api.get_device, device_id),
+                self.hass.async_add_executor_job(
+                    self.rointe_api.get_latest_energy_stats, device_id
+                ),
+            )
 
-            if (devices := zone.get("devices")) is None:
-                LOGGER.debug("No devices info found for zone")
-                continue
-
-            for device_id in devices:
-                if not devices[device_id]:
-                    continue
-
-                futures = (
-                    self.hass.async_add_executor_job(
-                        self.rointe_api.get_device, device_id
-                    ),
-                    self.hass.async_add_executor_job(
-                        self.rointe_api.get_latest_energy_stats, device_id
-                    ),
-                )
-
-                pending_futures.extend([futures[0], futures[1]])
-                device_data_futures[device_id] = futures
+            pending_futures.extend([futures[0], futures[1]])
+            device_data_futures[device_id] = futures
 
         # Gather all futures.
         await asyncio.gather(*pending_futures)
@@ -212,8 +198,6 @@ class RointeDeviceManager:
         LOGGER.debug("Processing data for device ID: %s", device_id)
 
         if base_data_response.success:
-            LOGGER.debug("Base Data:")
-            LOGGER.debug(pprint.pformat(base_data_response.data))
             base_data = base_data_response.data
         else:
             LOGGER.warning(
@@ -229,8 +213,6 @@ class RointeDeviceManager:
             return None
 
         if energy_data_response.success:
-            LOGGER.debug("Energy Data:")
-            LOGGER.debug(pprint.pformat(energy_data_response.data))
             energy_data = energy_data_response.data
         else:
             energy_data = None

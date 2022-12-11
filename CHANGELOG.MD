@@ -1,6 +1,9 @@
 Changelog
 ---
 
+## v1.3.0
+- Support for sub-zones
+
 ## v1.2.7
 - Experimental support for Belize/Olympia radiators
 
