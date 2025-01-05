@@ -16,18 +16,13 @@ from homeassistant.components.climate import PRESET_COMFORT, PRESET_ECO, HVACMod
 from homeassistant.core import HomeAssistant
 
 from .const import (
-    CMD_SET_HVAC_MODE,
-    CMD_SET_PRESET,
-    CMD_SET_TEMP,
     LOGGER,
     PRESET_ROINTE_ICE,
     RADIATOR_DEFAULT_TEMPERATURE,
-    RADIATOR_MODE_MANUAL,
-    RADIATOR_PRESET_COMFORT,
-    RADIATOR_PRESET_ECO,
-    RADIATOR_PRESET_ICE,
-    RADIATOR_PRESET_NONE,
     ROINTE_SUPPORTED_DEVICES,
+    RointeCommand,
+    RointeOperationMode,
+    RointePreset,
 )
 
 
@@ -131,6 +126,7 @@ class RointeDeviceManager:
         firmware_map_future: asyncio.Future = self.hass.async_add_executor_job(
             self.rointe_api.get_latest_firmware
         )
+
         pending_futures.append(firmware_map_future)
 
         # Dispatch API calls for all devices, in all zones. Each device requires a call
@@ -154,9 +150,9 @@ class RointeDeviceManager:
         firmware_map_response: ApiResponse = firmware_map_future.result()
 
         if firmware_map_response.success and firmware_map_response.data:
-            firmware_map: dict[
-                RointeProduct, dict[str, str]
-            ] | None = firmware_map_response.data
+            firmware_map: dict[RointeProduct, dict[str, str]] | None = (
+                firmware_map_response.data
+            )
         else:
             LOGGER.error(
                 "Unable to fetch firmware map: %s",
@@ -222,11 +218,7 @@ class RointeDeviceManager:
         else:
             latest_fw = None
 
-        new_device = self._add_or_update_device(
-            base_data, energy_data, device_id, latest_fw
-        )
-
-        return new_device
+        return self._add_or_update_device(base_data, energy_data, device_id, latest_fw)
 
     def _add_or_update_device(
         self,
@@ -248,7 +240,6 @@ class RointeDeviceManager:
 
         # Existing device, update it.
         if device_id in self.rointe_devices:
-
             target_device = self.rointe_devices[device_id]
 
             if not target_device.hass_available:
@@ -282,27 +273,32 @@ class RointeDeviceManager:
             else "N/A",
         )
 
-        rointe_device = RointeDevice(
+        return RointeDevice(
             device_info=device_data,
             device_id=device_id,
             energy_data=energy_stats,
             latest_fw=latest_fw,
         )
 
-        return rointe_device
-
-    async def send_command(self, device: RointeDevice, command: str, arg) -> bool:
+    async def send_command(
+        self, device: RointeDevice, command: RointeCommand, arg
+    ) -> bool:
         """Send command to the device."""
 
-        LOGGER.debug("Sending command [%s] to device ID [%s]", command, device.id)
+        LOGGER.debug(
+            "Sending command [%s] to device ID [%s]. Args: %s",
+            command,
+            device.name,
+            arg,
+        )
 
-        if command == CMD_SET_TEMP:
+        if command == RointeCommand.SET_TEMP:
             return await self._set_device_temp(device, arg)
 
-        if command == CMD_SET_PRESET:
+        if command == RointeCommand.SET_PRESET:
             return await self._set_device_preset(device, arg)
 
-        if command == CMD_SET_HVAC_MODE:
+        if command == RointeCommand.SET_HVAC_MODE:
             return await self._set_device_mode(device, arg)
 
         LOGGER.warning("Ignoring unsupported command: %s", command)
@@ -316,23 +312,26 @@ class RointeDeviceManager:
         )
 
         if not result.success:
+            LOGGER.debug("_set_device_temp failed: %s", result.error_message)
+
             # Set the device as unavailable.
             device.hass_available = False
+
             return False
 
         # Update the device internal status
         device.temp = new_temp
-        device.mode = RADIATOR_MODE_MANUAL
+        device.mode = RointeOperationMode.MANUAL.value
         device.power = True
 
         if new_temp == device.comfort_temp:
-            device.preset = RADIATOR_PRESET_COMFORT
+            device.preset = RointePreset.COMFORT
         elif new_temp == device.eco_temp:
-            device.preset = RADIATOR_PRESET_ECO
+            device.preset = RointePreset.ECO
         elif new_temp == device.ice_temp:
-            device.preset = RADIATOR_PRESET_ICE
+            device.preset = RointePreset.ICE
         else:
-            device.preset = RADIATOR_PRESET_NONE
+            device.preset = RointePreset.NONE
 
         return True
 
@@ -344,13 +343,14 @@ class RointeDeviceManager:
         )
 
         if not result.success:
+            LOGGER.debug("_set_device_mode failed: %s", result.error_message)
             # Set the device as unavailable.
             device.hass_available = False
             return False
 
         # Update the device's internal status
         if hvac_mode == HVACMode.OFF:
-            if device.mode == RADIATOR_MODE_MANUAL:
+            if device.mode == RointeOperationMode.MANUAL:
                 device.temp = RADIATOR_DEFAULT_TEMPERATURE
 
             device.power = False
@@ -359,27 +359,27 @@ class RointeDeviceManager:
         elif hvac_mode == HVACMode.HEAT:
             device.temp = device.comfort_temp
             device.power = True
-            device.mode = RADIATOR_MODE_MANUAL
-            device.preset = RADIATOR_PRESET_NONE
+            device.mode = RointeOperationMode.MANUAL.value
+            device.preset = RointePreset.NONE
 
-        elif hvac_mode == RADIATOR_MODE_MANUAL:
+        elif hvac_mode == RointeOperationMode.MANUAL:
             current_mode: ScheduleMode = device.get_current_schedule_mode()
 
             # Set the appropriate temperature and preset according to the schedule.
             if current_mode == ScheduleMode.COMFORT:
                 device.temp = device.comfort_temp
-                device.preset = RADIATOR_PRESET_COMFORT
+                device.preset = RointePreset.COMFORT
             elif current_mode == ScheduleMode.ECO:
                 device.temp = device.eco_temp
-                device.preset = RADIATOR_PRESET_ECO
+                device.preset = RointePreset.ECO
             elif device.ice_mode:
                 device.temp = device.ice_temp
-                device.preset = RADIATOR_PRESET_ICE
+                device.preset = RointePreset.ICE
             else:
                 device.temp = RADIATOR_DEFAULT_TEMPERATURE
 
             device.power = True
-            device.mode = RADIATOR_MODE_MANUAL
+            device.mode = RointeOperationMode.MANUAL.value
 
         return True
 
@@ -391,6 +391,8 @@ class RointeDeviceManager:
         )
 
         if not result.success:
+            LOGGER.debug("_set_device_preset failed: %s", result.error_message)
+
             # Set the device as unavailable.
             device.hass_available = False
             return False
@@ -398,15 +400,18 @@ class RointeDeviceManager:
         # Update the device internal status
         if preset == PRESET_COMFORT:
             device.power = True
-            device.mode = RADIATOR_MODE_MANUAL
-            device.preset = RADIATOR_PRESET_COMFORT
+            device.temp = device.comfort_temp
+            device.mode = RointeOperationMode.MANUAL.value
+            device.preset = RointePreset.COMFORT
         elif preset == PRESET_ECO:
             device.power = True
-            device.mode = RADIATOR_MODE_MANUAL
-            device.preset = RADIATOR_PRESET_ECO
+            device.temp = device.eco_temp
+            device.mode = RointeOperationMode.MANUAL.value
+            device.preset = RointePreset.ECO
         elif preset == PRESET_ROINTE_ICE:
             device.power = True
-            device.mode = RADIATOR_MODE_MANUAL
-            device.preset = RADIATOR_PRESET_ICE
+            device.temp = device.ice_temp
+            device.mode = RointeOperationMode.MANUAL.value
+            device.preset = RointePreset.ICE
 
         return True
