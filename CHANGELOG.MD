@@ -1,5 +1,9 @@
 ## Changelog
 
+## v2.0.0-1
+
+- Added missing version.
+
 ## v2.0.0
 
 - Updated to HA 2015.01

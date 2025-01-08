@@ -6,5 +6,6 @@
   "documentation": "https://www.home-assistant.io/integrations/rointe",
   "iot_class": "cloud_polling",
   "quality_scale": "internal",
-  "requirements": ["rointe-sdk==1.5.1"]
+  "requirements": ["rointe-sdk==1.5.1"],
+  "version": "2.0.0"
 }
