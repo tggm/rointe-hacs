@@ -5,6 +5,7 @@
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/rointe",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/tggm/rointe-hacs/issues",
   "quality_scale": "internal",
   "requirements": ["rointe-sdk==1.5.1"],
   "version": "2.0.0"
