@@ -1,8 +1,8 @@
 ## Changelog
 
-## v2.0.1
+## V2.1.0
 
-- Added missing version.
+- Adds missing oval towel support. (#15)
 
 ## v2.0.0
 
