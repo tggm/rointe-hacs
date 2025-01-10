@@ -1,6 +1,6 @@
 ## Changelog
 
-## v2.0.0-1
+## v2.0.1
 
 - Added missing version.
 
