@@ -1,5 +1,14 @@
 ## Changelog
 
+## v2.0.0-1
+
+- Added missing version.
+
+## v2.0.0
+
+- Updated to HA 2015.01
+- Some bug fixes
+
 ## v1.4.0
 
 - Support for Oval Towel

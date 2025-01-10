@@ -11,16 +11,9 @@
             "user": {
                 "data": {
                     "rointe_password": "Password",
-                    "rointe_username": "Username"
+                    "rointe_username": "Email"
                 },
-                "title": "Connect to Rointe Connect"
-
-            },
-            "installation": {
-                "data": {
-                    "rointe_installation": "Installations"
-                },
-                "title":"Select installation"
+                "title": "Fill in your Rointe Connect information"
             }
         }
     }

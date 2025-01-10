@@ -1,7 +1,6 @@
 """Update entity platform for Rointe devices."""
-from __future__ import annotations
 
-from abc import ABC
+from __future__ import annotations
 
 from rointesdk.device import RointeDevice
 
@@ -17,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import RointeDataUpdateCoordinator
-from .rointe_entity import RointeRadiatorEntity
+from .entity import RointeRadiatorEntity
 
 
 async def async_setup_entry(
@@ -36,7 +35,7 @@ async def async_setup_entry(
     )
 
 
-class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity, ABC):
+class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity):
     """Update entity."""
 
     def __init__(
@@ -47,8 +46,8 @@ class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity, ABC):
         """Init the update entity."""
 
         self.entity_description = UpdateEntityDescription(
-            key="fw_update_available",
-            name="Update Available",
+            key="update_available",
+            name=f"{radiator.name} Update Available",
             device_class=UpdateDeviceClass.FIRMWARE,
             entity_category=EntityCategory.DIAGNOSTIC,
         )
@@ -57,7 +56,6 @@ class RointeUpdateEntity(RointeRadiatorEntity, UpdateEntity, ABC):
         super().__init__(
             coordinator,
             radiator,
-            name=f"{radiator.name} Update Available",
             unique_id=f"{radiator.id}-fw_update_available",
         )
 

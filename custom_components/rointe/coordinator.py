@@ -1,22 +1,42 @@
 """Provides the Rointe DataUpdateCoordinator."""
+
 from __future__ import annotations
 
-from datetime import timedelta
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from rointesdk.device import RointeDevice
 
+from homeassistant.components.sensor import SensorEntityDescription
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN, LOGGER, PLATFORMS
 from .device_manager import RointeDeviceManager
-from .sensor_descriptions import RointeSensorEntityDescription
 
-ROINTE_API_REFRESH_INTERVAL = timedelta(seconds=60)
+ROINTE_API_REFRESH_INTERVAL = timedelta(seconds=15)
+
+
+@dataclass
+class RointeSensorEntityDescriptionMixin:
+    """Define a description mixin for Rointe sensor entities."""
+
+    last_reset_fn: Callable[[RointeDevice], datetime | None]
+    name_fn: Callable[[RointeDevice], str]
+    value_fn: Callable[[RointeDevice], StateType]
+
+
+@dataclass
+class RointeSensorEntityDescription(
+    SensorEntityDescription, RointeSensorEntityDescriptionMixin
+):
+    """Define an object to describe Rointe sensor entities."""
 
 
 class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]):
@@ -64,8 +84,7 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
         entity_constructor_list: list[Any],
         platform: str,
     ) -> None:
-        """
-        Add entities for new devices, for a given platform.
+        """Add entities for new devices, for a given platform.
 
         Called from a platform's `async_setup_entry`.
         """
@@ -109,7 +128,6 @@ class RointeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, RointeDevice]]
 
         for device_id, device in discovered_devices.items():
             if device_id in self.unregistered_keys[Platform.SENSOR]:
-
                 new_entities.extend(
                     [
                         sensor_constructor(device, self, sensor_description)
@@ -129,7 +147,7 @@ def device_update_info(hass: HomeAssistant, rointe_device: RointeDevice) -> None
 
     LOGGER.debug("Updating device registry info for %s", rointe_device.name)
 
-    dev_registry = device_registry.async_get(hass)
+    dev_registry = dr.async_get(hass)
 
     if device := dev_registry.async_get_device(
         identifiers={(DOMAIN, rointe_device.id)},
