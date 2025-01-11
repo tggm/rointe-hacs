@@ -36,3 +36,4 @@ This project is under minimum support. Contributions are welcome. I also appreci
 
 ### Support
 <a href="https://buymeacoffee.com/tggm" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+ETH / ERC20: 0x0165C7afd359B85a6F7f1D22d6EC7FB183f3b446
