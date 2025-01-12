@@ -1,4 +1,7 @@
+# ⚠️ This repository has been moved to https://github.com/tggm/rointe-radiators
+
 # 🌞 rointe-hacs
+
 
 A minimal integration for Rointe radiators in Home Assistant. 🏡
 
