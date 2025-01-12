@@ -1,4 +1,10 @@
-## Changelog
+# Changelog
+
+## V2.2.0
+
+- Updated to rointe-sdk 1.6.0
+  - Fixes a lot of linting errors on the library
+  - Fixes some API responses error handling.
 
 ## V2.1.0
 
