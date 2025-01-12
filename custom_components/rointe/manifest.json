@@ -7,6 +7,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/tggm/rointe-hacs/issues",
   "quality_scale": "internal",
-  "requirements": ["rointe-sdk==1.5.1"],
+  "requirements": ["rointe-sdk==1.6.0"],
   "version": "2.1.0"
 }
